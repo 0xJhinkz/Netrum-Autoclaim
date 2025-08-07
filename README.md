@@ -23,8 +23,8 @@ A professional Telegram reporting system for Netrum AI mining operations on Base
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/rokipdj88/netrum-auto.git
-   cd netrum-auto
+   git clone https://github.com/0xJhinkz/Netrum-Autoclaim.git
+   cd Netrum-Autoclaim
    ```
 
 2. **Install dependencies**:
