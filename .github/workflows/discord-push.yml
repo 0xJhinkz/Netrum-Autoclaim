@@ -1,0 +1,64 @@
+name: GitHub → Discord Push Bot
+
+on:
+  push:
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get Repository Visibility
+        id: repo
+        run: |
+          visibility=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            https://api.github.com/repos/${{ github.repository }} | jq -r '.private')
+          if [ "$visibility" == "true" ]; then
+            echo "visibility=Private 🔒" >> $GITHUB_OUTPUT
+          else
+            echo "visibility=Public 🌐" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send Push Message to Discord
+        env:
+          WEBHOOK_URL: https://discord.com/api/webhooks/1392378414526103593/0cCpbWiPo62o26qLAHZZGJsf0Sjlw0bJATqEJ55xurVcW5fDfS18QtKmU-GXIFkBPfCB
+        run: |
+          repo_name="${{ github.repository }}"
+          ref_name="${{ github.ref_name }}"
+          repo_url="https://github.com/${repo_name}/tree/${ref_name}"
+
+          commits=""
+          for commit in $(jq -r '.commits[].id' "$GITHUB_EVENT_PATH"); do
+            msg=$(jq -r --arg id "$commit" '.commits[] | select(.id==$id) | .message' "$GITHUB_EVENT_PATH")
+            url=$(jq -r --arg id "$commit" '.commits[] | select(.id==$id) | .url' "$GITHUB_EVENT_PATH")
+            author=$(jq -r --arg id "$commit" '.commits[] | select(.id==$id) | .author.name' "$GITHUB_EVENT_PATH")
+            email=$(jq -r --arg id "$commit" '.commits[] | select(.id==$id) | .author.email' "$GITHUB_EVENT_PATH")
+            short_sha=$(echo "$commit" | cut -c1-7)
+            commits+="[${short_sha}](${url}): ${msg} — \`${author} <${email}>\`"$'\n'
+          done
+
+          payload=$(jq -n \
+            --arg content "<@&1380297462853664918>" \
+            --arg title "📦 Push to ${repo_name}" \
+            --arg description "**${{ github.actor }}** pushed to [${repo_name}](${repo_url})" \
+            --arg commits "$commits" \
+            --arg footer "GitHub · Branch: ${ref_name} · ${{ steps.repo.outputs.visibility }}" \
+            --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{
+              username: "GitHub Bot",
+              avatar_url: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
+              content: $content,
+              embeds: [{
+                title: $title,
+                description: $description,
+                color: 7506394,
+                fields: [
+                  { name: "Commits", value: $commits }
+                ],
+                footer: { text: $footer },
+                timestamp: $timestamp
+              }],
+              allowed_mentions: { roles: ["1380297462853664918"] }
+            }')
+
+          echo "$payload" | curl -X POST -H "Content-Type: application/json" -d @- "$WEBHOOK_URL"
