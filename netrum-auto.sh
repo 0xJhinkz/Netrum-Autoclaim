@@ -1,4 +1,4 @@
-#!/bin/bash
+﻿#!/bin/bash
 
 # Load .env
 set -a
@@ -14,25 +14,19 @@ send_telegram() {
 }
 
 while true; do
-  start_time=$(date '+%Y-%m-%d %H:%M:%S')
-  NPT_BALANCE=$(node get-npt-balance.js 2>/dev/null)
-
-  send_telegram "📢 *NT-Exhaust Report*  
-*===== NETRUM AI =====*
-
-🚀 *Mining Netrum dimulai...* ⛏️
-🕒 *Jam mulai*: $start_time
-🧾 *Wallet*: \`${WALLET}\`
-💰 *Saldo NPT (Base)*: ${NPT_BALANCE} NPT"
+  # Send enhanced start report with NPT balance and Base name
+  node send-report.js start
 
   netrum-mining &
   mining_pid=$!
 
   sleep 24h
 
-  send_telegram "⏳ *24 jam selesai. Klaim reward...* 🪙"
+  # Send claim report with current balance
+  node send-report.js claim
   echo "y" | netrum-claim
   kill $mining_pid
 
-  send_telegram "✅ *Claim selesai! Mining dimulai ulang...* 🔁"
+  # Send completion report with updated balance
+  node send-report.js complete
 done
